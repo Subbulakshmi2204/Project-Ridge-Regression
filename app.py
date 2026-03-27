@@ -8,28 +8,48 @@ from sklearn.linear_model import Ridge
 from sklearn.preprocessing import StandardScaler
 from sklearn.metrics import mean_squared_error, r2_score
 
-st.title("🏠 Housing Price Prediction (Ridge Regression)")
+st.set_page_config(page_title="Housing Price Prediction", layout="wide")
+
+st.title("🏠 Housing Price Prediction using Ridge Regression")
 
 # ---------------------------
 # Upload Dataset
 # ---------------------------
-st.sidebar.header("📂 Upload Dataset (CSV)")
-file = st.sidebar.file_uploader("Upload California Housing CSV", type=["csv"])
+st.sidebar.header("📂 Upload Dataset")
+file = st.sidebar.file_uploader("Upload CSV File", type=["csv"])
 
 if file is not None:
     df = pd.read_csv(file)
 
     # ---------------------------
-    # Feature Selection
+    # Clean Column Names
+    # ---------------------------
+    df.columns = df.columns.str.strip().str.lower()
+
+    # ---------------------------
+    # Expected Columns (Kaggle Dataset)
     # ---------------------------
     features = [
-        'longitude', 'latitude', 'housingMedianAge',
-        'totalRooms', 'totalBedrooms', 'population',
-        'households', 'medianIncome', 'oceanProximity'
+        'longitude', 'latitude', 'housing_median_age',
+        'total_rooms', 'total_bedrooms', 'population',
+        'households', 'median_income', 'ocean_proximity'
     ]
 
-    target = 'medianHouseValue'   # adjust if your column name differs
+    target = 'median_house_value'
 
+    # ---------------------------
+    # Check Missing Columns
+    # ---------------------------
+    missing_cols = [col for col in features + [target] if col not in df.columns]
+
+    if missing_cols:
+        st.error(f"❌ Missing columns: {missing_cols}")
+        st.write("📌 Available columns:", df.columns.tolist())
+        st.stop()
+
+    # ---------------------------
+    # Select Required Columns
+    # ---------------------------
     df = df[features + [target]]
 
     # ---------------------------
@@ -40,7 +60,7 @@ if file is not None:
     # ---------------------------
     # Encode Categorical Feature
     # ---------------------------
-    df = pd.get_dummies(df, columns=['oceanProximity'], drop_first=True)
+    df = pd.get_dummies(df, columns=['ocean_proximity'], drop_first=True)
 
     # ---------------------------
     # Split Data
@@ -53,14 +73,14 @@ if file is not None:
     )
 
     # ---------------------------
-    # Scaling
+    # Feature Scaling
     # ---------------------------
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
 
     # ---------------------------
-    # Model
+    # Model Section
     # ---------------------------
     st.sidebar.header("⚙️ Model Settings")
     alpha = st.sidebar.slider("Alpha (Regularization)", 0.01, 10.0, 1.0)
@@ -69,16 +89,23 @@ if file is not None:
     model.fit(X_train_scaled, y_train)
 
     # ---------------------------
-    # Evaluation
+    # Prediction
     # ---------------------------
     y_pred = model.predict(X_test_scaled)
 
+    # ---------------------------
+    # Evaluation
+    # ---------------------------
     mse = mean_squared_error(y_test, y_pred)
     r2 = r2_score(y_test, y_pred)
 
-    st.subheader("📊 Model Performance")
-    st.write(f"**MSE:** {mse:.4f}")
-    st.write(f"**R² Score:** {r2:.4f}")
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.metric("📉 Mean Squared Error", f"{mse:.4f}")
+
+    with col2:
+        st.metric("📊 R² Score", f"{r2:.4f}")
 
     # ---------------------------
     # Feature Importance
@@ -95,7 +122,7 @@ if file is not None:
     # ---------------------------
     # Visualization
     # ---------------------------
-    st.subheader("📈 Actual vs Predicted")
+    st.subheader("📈 Actual vs Predicted (Error Visualization)")
 
     fig, ax = plt.subplots()
 
@@ -107,7 +134,7 @@ if file is not None:
         alpha=0.7
     )
 
-    # Perfect line
+    # Perfect prediction line
     ax.plot(
         [y_test.min(), y_test.max()],
         [y_test.min(), y_test.max()],
@@ -116,12 +143,12 @@ if file is not None:
 
     ax.set_xlabel("Actual Values")
     ax.set_ylabel("Predicted Values")
-    ax.set_title("Actual vs Predicted")
+    ax.set_title("Actual vs Predicted Prices")
 
     cbar = plt.colorbar(scatter)
-    cbar.set_label("Prediction Error")
+    cbar.set_label("Prediction Error (Actual - Predicted)")
 
     st.pyplot(fig)
 
 else:
-    st.info("👆 Please upload your dataset to proceed.")
+    st.info("👆 Please upload your California Housing dataset CSV to begin.")
